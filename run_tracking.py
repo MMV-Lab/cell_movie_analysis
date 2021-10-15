@@ -9,10 +9,12 @@ from skimage.draw import line
 from utils import random_colormap
 import pdb
 
-seg_path = "/mnt/data/well_C1_seg/"
-vis_path = "/mnt/data/well_C1_track/"
-raw_path = "/mnt/data/well_C1/"
-track_result = "/mnt/data/well_C1_full.npy"
+# define binarization function
+def prepare_binary(fn):
+    # generate binary segmentaiton result
+    seg = np.squeeze(imread(fn)) > bw_th
+    seg = remove_small_objects(seg>0, min_size=min_obj_size)
+    return seg
 
 # params
 max_matching_dist = 45
@@ -21,123 +23,133 @@ track_display_legnth = 20
 min_obj_size = 20
 bw_th = -0.5
 
-# define binarization function
-def prepare_binary(fn):
-    # generate binary segmentaiton result
-    seg = np.squeeze(imread(fn)) > bw_th
-    seg = remove_small_objects(seg>0, min_size=min_obj_size)
-    return seg
+parent_path = "/mnt/data/"
+all_movies = glob(parent_path + "timelapse/*.tiff")
+for M_idx, movies in enumerate(all_movies):
+    if M_idx < 2:
+        continue
+    movie_basename = os.path.basename(movies)
+    well_name = movie_basename[:-5]
+
+    seg_path = f"{parent_path}timelapse_seg/{well_name}/"
+    # vis_path = f"{parent_path}timelapse_track/{well_name}"
+    # os.makedirs(vis_path, exist_ok=True)
+    raw_path = f"{parent_path}timelapse/{well_name}"
+    track_result = f"{parent_path}timelapse_track/{well_name}_result.npy"
 
 
-total_time = 300
-traj = dict()
-lineage = dict()
-for tt in range(total_time):
-    seg_fn = seg_path + f"img_{tt}_segmentation.tiff"
+    total_time = len(glob(raw_path + "/*.tiff"))
+    traj = dict()
+    lineage = dict()
+    for tt in range(total_time):
+        seg_fn = seg_path + f"img_{tt}_segmentation.tiff"
 
-    seg = prepare_binary(seg_fn)
+        seg = prepare_binary(seg_fn)
 
-    # get label image
-    seg_label, num_cells = ndimage.label(seg)
+        # get label image
+        seg_label, num_cells = ndimage.label(seg)
 
-    # calculate center of mass
-    centroid = ndimage.center_of_mass(seg, labels=seg_label, index=np.arange(1, num_cells + 1))
+        # calculate center of mass
+        centroid = ndimage.center_of_mass(seg, labels=seg_label, index=np.arange(1, num_cells + 1))
 
-    # generate cell information of this frame
-    traj.update({
-        tt : {"centroid": centroid, "parent": [], "child": [], "ID": []}
-    })
+        # generate cell information of this frame
+        traj.update({
+            tt : {"centroid": centroid, "parent": [], "child": [], "ID": []}
+        })
 
-    
-# initialize trajectory ID, parent node, track pts for the first frame
-max_cell_id =  len(traj[0].get("centroid"))
-traj[0].update(
-    {"ID": np.arange(1, max_cell_id + 1)}
-)
-traj[0].update(
-    {"parent": -1 * np.ones(max_cell_id, dtype=int)}
-)
-centers = traj[0].get("centroid")
-pts = []
-for ii in range(max_cell_id):
-    pts.append([centers[ii]])
-    lineage.update({ii: [centers[ii]]})
-traj[0].update({"track_pts": pts})
-
-for tt in np.arange(1, total_time):
-    p_prev = traj[tt-1].get("centroid")
-    p_next = traj[tt].get("centroid")
-
-    ###########################################################
-    # simple LAP tracking
-    ###########################################################
-    num_cell_prev = len(p_prev)
-    num_cell_next = len(p_next)
-
-    # calculate distance between each pair of cells
-    cost_mat = spatial.distance.cdist(p_prev, p_next)
-
-    # if the distance is too far, change to approx. Inf.
-    cost_mat[cost_mat > max_matching_dist] = approx_inf
-
-    # add edges from cells in previous frame to auxillary vertices
-    # in order to accomendate segmentation errors and leaving cells
-    cost_mat_aug = max_matching_dist * 1.2 * np.ones(
-        (num_cell_prev, num_cell_next + num_cell_prev), dtype=float
+        
+    # initialize trajectory ID, parent node, track pts for the first frame
+    max_cell_id =  len(traj[0].get("centroid"))
+    traj[0].update(
+        {"ID": np.arange(0, max_cell_id, 1)}
     )
-    cost_mat_aug[:num_cell_prev, :num_cell_next] = cost_mat[:, :]
+    traj[0].update(
+        {"parent": -1 * np.ones(max_cell_id, dtype=int)}
+    )
+    centers = traj[0].get("centroid")
+    pts = []
+    for ii in range(max_cell_id):
+        pts.append([centers[ii]])
+        lineage.update({ii: [centers[ii]]})
+    traj[0].update({"track_pts": pts})
 
-    # solve the optimization problem
-    row_ind, col_ind = optimize.linear_sum_assignment(cost_mat_aug)
+    for tt in np.arange(1, total_time):
+        p_prev = traj[tt-1].get("centroid")
+        p_next = traj[tt].get("centroid")
 
-    #########################################################
-    # parse the matching result
-    #########################################################
-    prev_child = np.ones(num_cell_prev, dtype=int)
-    next_parent = np.ones(num_cell_next, dtype=int)
-    next_ID = np.zeros(num_cell_next, dtype=int)
-    next_track_pts = []
+        ###########################################################
+        # simple LAP tracking
+        ###########################################################
+        num_cell_prev = len(p_prev)
+        num_cell_next = len(p_next)
 
-    # assign child for cells in previous frame
-    for ii in range(num_cell_prev):
-        if col_ind[ii] >= num_cell_next:
-            prev_child[ii] = -1
-        else:
-            prev_child[ii] = col_ind[ii]
+        # calculate distance between each pair of cells
+        cost_mat = spatial.distance.cdist(p_prev, p_next)
 
-    # assign parent for cells in next frame, update ID and track pts
-    prev_pt = traj[tt-1].get("track_pts")
-    prev_id = traj[tt-1].get("ID")
-    for ii in range(num_cell_next):
-        if ii in col_ind:
-            # a matched cell is found
-            next_parent[ii] = np.where(col_ind == ii)[0][0]
-            next_ID[ii] = prev_id[next_parent[ii]]
-            
-            current_pts = prev_pt[next_parent[ii]].copy()
-            current_pts.append(p_next[ii])
-            if len(current_pts) > track_display_legnth:
-                current_pts.pop(0)
-            next_track_pts.append(current_pts)
-            # attach this point to the lineage
-            single_lineage = lineage.get(next_ID[ii])
-            single_lineage.append(p_next[ii])
-            lineage.update({next_ID[ii]: single_lineage})
-        else:
-            # a new cell
-            next_parent[ii] = -1
-            next_ID[ii] = max_cell_id
-            next_track_pts.append([p_next[ii]])
-            lineage.update({max_cell_id: [p_next[ii]]})
-            max_cell_id += 1
+        # if the distance is too far, change to approx. Inf.
+        cost_mat[cost_mat > max_matching_dist] = approx_inf
 
-    # update record
-    traj[tt-1].update({"child": prev_child})
-    traj[tt].update({"parent": next_parent})
-    traj[tt].update({"ID": next_ID})
-    traj[tt].update({"track_pts": next_track_pts})
+        # add edges from cells in previous frame to auxillary vertices
+        # in order to accomendate segmentation errors and leaving cells
+        cost_mat_aug = max_matching_dist * 1.2 * np.ones(
+            (num_cell_prev, num_cell_next + num_cell_prev), dtype=float
+        )
+        cost_mat_aug[:num_cell_prev, :num_cell_next] = cost_mat[:, :]
 
-np.save(track_result, [traj, lineage])
+        # solve the optimization problem
+        row_ind, col_ind = optimize.linear_sum_assignment(cost_mat_aug)
+
+        #########################################################
+        # parse the matching result
+        #########################################################
+        prev_child = np.ones(num_cell_prev, dtype=int)
+        next_parent = np.ones(num_cell_next, dtype=int)
+        next_ID = np.zeros(num_cell_next, dtype=int)
+        next_track_pts = []
+
+        # assign child for cells in previous frame
+        for ii in range(num_cell_prev):
+            if col_ind[ii] >= num_cell_next:
+                prev_child[ii] = -1
+            else:
+                prev_child[ii] = col_ind[ii]
+
+        # assign parent for cells in next frame, update ID and track pts
+        prev_pt = traj[tt-1].get("track_pts")
+        prev_id = traj[tt-1].get("ID")
+        for ii in range(num_cell_next):
+            if ii in col_ind:
+                # a matched cell is found
+                next_parent[ii] = np.where(col_ind == ii)[0][0]
+                next_ID[ii] = prev_id[next_parent[ii]]
+                
+                current_pts = prev_pt[next_parent[ii]].copy()
+                current_pts.append(p_next[ii])
+                if len(current_pts) > track_display_legnth:
+                    current_pts.pop(0)
+                next_track_pts.append(current_pts)
+                # attach this point to the lineage
+                single_lineage = lineage.get(next_ID[ii])
+                try:
+                    single_lineage.append(p_next[ii])
+                except Exception:
+                    pdb.set_trace()
+                lineage.update({next_ID[ii]: single_lineage})
+            else:
+                # a new cell
+                next_parent[ii] = -1
+                next_ID[ii] = max_cell_id
+                next_track_pts.append([p_next[ii]])
+                lineage.update({max_cell_id: [p_next[ii]]})
+                max_cell_id += 1
+
+        # update record
+        traj[tt-1].update({"child": prev_child})
+        traj[tt].update({"parent": next_parent})
+        traj[tt].update({"ID": next_ID})
+        traj[tt].update({"track_pts": next_track_pts})
+
+    np.save(track_result, [traj, lineage])
 
 """
 ######################################################

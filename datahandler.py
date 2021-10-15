@@ -19,7 +19,10 @@ class Simple2D_Dataset(Dataset):
         patch_size: tuple = (640, 640),
         inference: bool = False,
     ):
-        """ data_path assumes _IM.tiff and _GT.tiff """
+        """ 
+        data_path assumes _IM.tiff and _GT.tiff for training
+        data_path assumes .tiff single channel 3D images for inference
+        """
 
         self.img_list = []
         self.inference = inference
