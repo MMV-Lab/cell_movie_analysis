@@ -70,3 +70,11 @@ make sure your change `out_path` to the directory you want to save your data
 
 ### step 3: Apply a trained model on these new synthetic images
 
+```bash
+python test_on_syn.py
+```
+
+Make sure to check the `data_path` to the directory you saved your test data and change `out_path` to the path your want to save the results
+
+This script is very simple. You may need to take this and change accordingly for different applications, such as ImJoy.
+
