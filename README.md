@@ -78,3 +78,5 @@ Make sure to check the `data_path` to the directory you saved your test data and
 
 This script is very simple. You may need to take this and change accordingly for different applications, such as ImJoy.
 
+There are two more advanced ways to run a Pytorch model in production, see 
+https://pytorch-lightning.readthedocs.io/en/latest/common/production_inference.html

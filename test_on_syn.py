@@ -44,5 +44,5 @@ trainer = pl.Trainer(
 )
 
 net.out_path = out_path
-test_dataloader = DataLoader(Simple2D_Dataset(split_path, inference=True))
+test_dataloader = DataLoader(Simple2D_Dataset(data_path, inference=True))
 trainer.test(model=net, dataloaders=test_dataloader)
