@@ -8,7 +8,7 @@ from scipy.ndimage import gaussian_filter
 
 
 out_path = "/mnt/data/syn/"
-num_img = 8
+num_img = 256
 num_obj = 10
 for ii in range(num_img):
     im = np.zeros((1280, 800))
