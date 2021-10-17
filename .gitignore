@@ -1,0 +1,7 @@
+lightning_log/**
+lightning_logs/**
+
+__pycache__/**
+
+*.png
+*.tiff

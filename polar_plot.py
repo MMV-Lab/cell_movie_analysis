@@ -7,7 +7,7 @@ import pdb
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='polar')
 
-traj = np.load("/mnt/data/well_C1_full.npy", allow_pickle=True)
+traj = np.load("/mnt/data/timelapse_track/well_C1_result.npy", allow_pickle=True)
 lineage = traj[1]
 
 for _, single_trace in lineage.items():
