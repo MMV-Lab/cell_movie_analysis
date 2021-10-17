@@ -47,12 +47,9 @@ tensorboard-data-server==0.6.1
 tensorboard-plugin-wit==1.8.0
 tifffile==2021.8.30
 toolz==0.11.1
-torch==1.8.2+cu111
 torch-tb-profiler==0.2.1
-torchaudio==0.8.2
 torchio==0.18.56
 torchmetrics==0.5.1
-torchvision==0.9.2+cu111
 tqdm==4.62.2
 typing-extensions==3.10.0.2
 urllib3==1.26.6
