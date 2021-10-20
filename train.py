@@ -28,7 +28,7 @@ trainer = pl.Trainer(
     gpus=1,
     precision=16,
     distributed_backend='ddp',
-    max_epochs=100000,
+    max_epochs=10000,
     #callbacks=[early_stopping],
 )
 trainer.logger._default_hp_metric = False

@@ -27,8 +27,8 @@ def make_polar_plot(lineage, exclude_id, out_name):
     plt.savefig(out_name)
 
 short_track_cutoff = 5
-time_step_in_min = 2
-px_size_in_micron = 1
+time_step_in_min = 4
+px_size_in_micron = 0.46
 
 filenames = glob("/mnt/data/timelapse_track/well_*_result.npy")
 filenames.sort()
@@ -53,13 +53,13 @@ for fn in filenames:
         p_prev = single_trace[:-1]
         p_next = single_trace[1:]
         p_displacement = [np.subtract(x, y) for x, y in zip(p_next, p_prev)]
-        p_velocity = [np.sqrt(p[0]**2 + p[1]**2) for p in p_displacement]
+        p_velocity = [np.sqrt(p[0]**2 + p[1]**2) * px_size_in_micron / time_step_in_min for p in p_displacement]
         mean_velocity = np.mean(p_velocity)
         p90_velocity = np.percentile(p_velocity, 90)
         peak_velocity = np.max(p_velocity)
         std_velocity = np.std(p_velocity)
 
-        p_rad = [math.atan2(p[0], p[1]) for p in p_displacement]
+        p_rad = [math.atan2(p[0], p[1]) / time_step_in_min for p in p_displacement]
         p_rad_prev = p_rad[:-1]
         p_rad_next = p_rad[1:]
         p_ang_rad = [np.subtract(x, y) for x, y in zip(p_rad_next, p_rad_prev)]
@@ -67,7 +67,7 @@ for fn in filenames:
         mean_ang_velocity = np.mean(p_ang_deg)
 
         # exclude erythrocyte
-        if mean_velocity > 20:
+        if mean_velocity > 10 * px_size_in_micron / time_step_in_min:
         #and (abs(mean_ang_velocity)<5 or abs(mean_ang_velocity)>175):
             ignore_track.append(track_id)
             continue
@@ -90,7 +90,65 @@ for fn in filenames:
     ang_v_plot.append(track_stat_df["mean_ang"].values)
     well_name.append(this_well)
 
-    make_polar_plot(lineage, ignore_track, f"{this_well}_polar.png")
+    # make_polar_plot(lineage, ignore_track, f"{this_well}_polar.png")
+
+
+fig = plt.figure(figsize=(10, 5))
+fig.suptitle('Sumary of cell motion analysis in sample movies', fontsize=12)
+plt.style.use('seaborn')
+
+ax = fig.add_subplot(411)
+ax.violinplot(mean_v_plot, showextrema=False, showmeans=True)
+ax.set_ylabel('mean velocity (um/sec)', rotation=0, ha='right')
+ax.axes.get_xaxis().set_visible(False)
+
+ax = fig.add_subplot(412)
+ax.violinplot(peak_v_plot, showextrema=False, showmeans=True)
+ax.set_ylabel('peak_v_plot (um/sec)', rotation=0, ha='right')
+ax.axes.get_xaxis().set_visible(False)
+
+ax = fig.add_subplot(413)
+ax.violinplot(std_v_plot, showextrema=False, showmeans=True)
+ax.set_ylabel('velocity constancy', rotation=0, ha='right')
+ax.axes.get_xaxis().set_visible(False)
+
+ax = fig.add_subplot(414)
+ax.violinplot(ang_v_plot, showextrema=False, showmeans=True)
+ax.set_ylabel('angular velocity (deg/sec)',rotation=0, ha='right')
+ax.set_xticks(np.arange(1,1+len(well_name)))
+ax.set_xticklabels(well_name, rotation=45)
+
+# plt.xticks(rotation=45)
+plt.subplots_adjust(hspace=0.1)
+#plt.tight_layout()
+plt.savefig("v.png", bbox_inches = 'tight')
+
+"""
+fig = plt.figure()
+ax = fig.add_subplot(411)
+ax.violinplot(mean_v_plot)
+ax.set_title('mean velocity (um/min)', wrap=True)
+ax.axes.get_xaxis().set_visible(False)
+
+ax = fig.add_subplot(412)
+ax.violinplot(peak_v_plot)
+ax.set_title('peak_v_plot (um/min)')
+ax.axes.get_xaxis().set_visible(False)
+
+ax = fig.add_subplot(413)
+ax.violinplot(std_v_plot)
+ax.set_title('velocity constancy')
+ax.axes.get_xaxis().set_visible(False)
+
+ax = fig.add_subplot(414)
+ax.violinplot(ang_v_plot)
+ax.set_title('velocity (deg/min)')
+ax.set_xticklabels(well_name, rotation=30, ha='right')
+
+# plt.xticks(rotation=45)
+plt.subplots_adjust(hspace=1)
+plt.savefig("v.png")
+
 
 
 fig = plt.figure()
@@ -125,3 +183,4 @@ ax.set_title('Mean angular velocity of each cell')
 plt.xticks(rotation=45)
 plt.savefig("ang_all.png")
 
+"""
