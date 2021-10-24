@@ -26,8 +26,6 @@ bw_th = -0.5
 parent_path = "/mnt/data/"
 all_movies = glob(parent_path + "timelapse/*.tiff")
 for M_idx, movies in enumerate(all_movies):
-    if M_idx < 2:
-        continue
     movie_basename = os.path.basename(movies)
     well_name = movie_basename[:-5]
 

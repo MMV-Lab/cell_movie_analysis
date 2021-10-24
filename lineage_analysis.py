@@ -91,8 +91,71 @@ for fn in filenames:
     well_name.append(this_well)
 
     # make_polar_plot(lineage, ignore_track, f"{this_well}_polar.png")
+"""
+# bubble plot
+tmp_idx = 0
+dim_row = 4
+dim_col = 3
+pt_color = []
+pt_size = []
+pt_x = []
+pt_y = []
+for row_idx in range(dim_row):
+    for col_idx in range(dim_col):
+        pt_color.append(mean_v_plot[tmp_idx].mean())
+        pt_size.append(mean_v_plot[tmp_idx].std())
+        pt_x.append(row_idx)
+        pt_y.append(col_idx)
+        tmp_idx += 1
+        if tmp_idx >= len(mean_v_plot):
+            break
 
+fig = plt.figure()
+sc = plt.scatter(np.array(pt_x), np.array(pt_y), s=15000*np.array(pt_size), c=100*np.array(pt_color), alpha=0.5)
+f = plt.colorbar(sc, orientation='horizontal', shrink=0.75)
+f.ax.tick_params(size=0)
+f.ax.get_xaxis().set_visible(False)
+ax = plt.gca()
+#ax.axes.xaxis.set_visible(False)
+#ax.axes.yaxis.set_visible(False)
+ax.axis('off')
+plt.xlim(-1, dim_row)
+plt.ylim(-1, dim_col)
+plt.savefig("bubble.png")
+"""
 
+"""
+# pcolor plot
+dim_row = 4
+dim_col = 3
+color_ar = np.zeros((dim_row, dim_col))
+tmp_idx=0
+for row_idx in range(dim_row):
+    for col_idx in range(dim_col):
+        color_ar[row_idx, col_idx] = mean_v_plot[tmp_idx].mean()
+        tmp_idx += 1
+        if tmp_idx >= len(mean_v_plot):
+            break
+
+color_ar[color_ar==0] = np.min(color_ar[color_ar>0])
+
+fig = plt.figure()
+ax = fig.add_subplot(111)
+c = ax.pcolor(color_ar, edgecolors='k', linewidths=4)
+f = plt.colorbar(c, orientation='horizontal', shrink=0.95)
+f.ax.tick_params(size=0)
+f.ax.get_xaxis().set_visible(False)
+ax = plt.gca()
+#ax.axes.xaxis.set_visible(False)
+#ax.axes.yaxis.set_visible(False)
+ax.axis('off')
+#plt.xlim(-1, dim_row)
+#plt.ylim(-1, dim_col)
+plt.savefig("pcolor.png")
+
+"""
+
+"""
 fig = plt.figure(figsize=(10, 5))
 fig.suptitle('Sumary of cell motion analysis in sample movies', fontsize=12)
 plt.style.use('seaborn')
@@ -122,34 +185,11 @@ ax.set_xticklabels(well_name, rotation=45)
 plt.subplots_adjust(hspace=0.1)
 #plt.tight_layout()
 plt.savefig("v.png", bbox_inches = 'tight')
+"""
+
 
 """
-fig = plt.figure()
-ax = fig.add_subplot(411)
-ax.violinplot(mean_v_plot)
-ax.set_title('mean velocity (um/min)', wrap=True)
-ax.axes.get_xaxis().set_visible(False)
-
-ax = fig.add_subplot(412)
-ax.violinplot(peak_v_plot)
-ax.set_title('peak_v_plot (um/min)')
-ax.axes.get_xaxis().set_visible(False)
-
-ax = fig.add_subplot(413)
-ax.violinplot(std_v_plot)
-ax.set_title('velocity constancy')
-ax.axes.get_xaxis().set_visible(False)
-
-ax = fig.add_subplot(414)
-ax.violinplot(ang_v_plot)
-ax.set_title('velocity (deg/min)')
-ax.set_xticklabels(well_name, rotation=30, ha='right')
-
-# plt.xticks(rotation=45)
-plt.subplots_adjust(hspace=1)
-plt.savefig("v.png")
-
-
+## box plot
 
 fig = plt.figure()
 ax = fig.add_subplot(111)
